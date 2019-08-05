@@ -1,26 +1,31 @@
 var fs = require('fs')
 var readDir = fs.readdirSync('./')
 
-function getTitle(url,callback){
-    fs.readFile(url, "utf-8", function(error, data) {
-      var title = data.match(/<title>.*?<\/title>/)[0].replace(/<\/?.+?\/?>/g,'')
-      callback(title)
+function getTitle(url, index) {
+  return new Promise(function (resolve, resject) {
+    fs.readFile(url, "utf-8", function (error, data) {
+      var title = data.match(/<title>.*?<\/title>/)[0].replace(/<\/?.+?\/?>/g, '')
+      resolve({ title, index })
     });
+  })
 }
 
-var html = ''
-readDir.map(item => {
-  if (item.indexOf('.html') !== -1) {
-    getTitle(item,function(title){
-      html += `<p><a target="_blank" href='./${item}'>${title}</a></p>`
+function listInfo() {
+  let html = '';
+  let htmlList = readDir.filter(item => item.indexOf('.html') > -1 && item.indexOf('nav') < 0)
+  let list = new Promise(function (resolve) {
+    htmlList.map((item, index) => {
+      getTitle(item, index).then(function (res) {
+        html += `<p><a target="_blank" href='./${item}'>${res.title}</a></p>`
+        res.index == htmlList.length - 1 && resolve(html)
+      })
     })
-  }
-})
+  })
+  return list
+}
 
-
-
-setTimeout(function(){
-  var demo = `<!DOCTYPE html>
+listInfo().then(function (html) {
+  var htmlTemplate = `<!DOCTYPE html>
   <html lang="zh-cn">
 
   <head>
@@ -44,10 +49,12 @@ setTimeout(function(){
   </body>
 
   </html>`
-  console.log(html);
-  fs.writeFile('nav.html', demo, function(err) {
+
+  fs.writeFile('nav.html', htmlTemplate, function (err,data) {
     if (err) {
-      return console.error(err)
+      console.error(err)
+    } else {
+      console.log('生成成功');
     }
   })
-},2000)
+})
